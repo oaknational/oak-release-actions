@@ -1,0 +1,57 @@
+name: Terraform Cloud Apply 
+description: "Applies changes to environment"
+
+inputs:
+  TF_API_TOKEN:
+    required: true
+
+  TF_BASE_DIRECTORY:
+    default: "infrastructure"
+    
+  TF_BASE_SUBDIRECTORY:
+    required: true
+
+  TF_CLOUD_ORGANIZATION:
+    required: true
+
+  TF_WORKSPACE:
+      required: true
+
+  TAG_ID:
+    required: true
+
+
+runs:
+    using: "composite"
+    steps:
+      - name: Set global ENV vars
+        shell: bash
+        run: |
+          echo "TF_API_TOKEN=${{ inputs.TF_API_TOKEN }}" >> $GITHUB_ENV
+          echo "TF_CLOUD_ORGANIZATION=${{ inputs.TF_CLOUD_ORGANIZATION }}" >> $GITHUB_ENV
+
+      - name: Set TF_VAR_tag_id
+        shell: bash
+        run: |
+          echo "TF_VAR_tag_id=\"${{ inputs.TAG_ID }}\""  >> $GITHUB_ENV
+
+      - name: Upload Configuration
+        uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.0.0
+        id: apply-upload
+        with:
+          workspace: ${{ inputs.TF_WORKSPACE }}
+          directory: ${{ inputs.TF_BASE_DIRECTORY }}/${{ inputs.TF_BASE_SUBDIRECTORY }}
+
+      - name: Create Apply Run
+        uses: hashicorp/tfc-workflows-github/actions/create-run@v1.0.0
+        id: apply-run
+        with:
+          workspace: ${{ inputs.TF_WORKSPACE }}
+          configuration_version: ${{ steps.apply-upload.outputs.configuration_version_id }}
+
+      - name: Apply
+        uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.0.0
+        with:
+          run: ${{ steps.apply-run.outputs.run_id }}
+          comment: "Applied GitHub Actions CI ${{ github.sha }}"
+    
