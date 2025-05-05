@@ -60,37 +60,42 @@ runs:
         with:
           plan: ${{ fromJSON(steps.plan-run.outputs.payload).data.relationships.plan.data.id }}
 
-      - name: Update PR
+      - name: Update PR Comment
         uses: actions/github-script@v6
-        id: plan-comment
         with:
           github-token: ${{ inputs.PR_COMMENT_TOKEN }}
           script: |
             const prParams = {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: context.issue.number
             };
 
+            const subdir = "${{ inputs.TF_BASE_SUBDIRECTORY }}";
+            const header = `#### Terraform Plan Output for \`${subdir}\``;
+
             const { data: comments } = await github.rest.issues.listComments(prParams);
+
             const botComment = comments.find(comment =>
-              comment.user.type === 'Bot' && comment.body.includes('Terraform Plan Output')
+              comment.user.type === 'Bot' && comment.body.startsWith(header)
             );
 
-            const output = `#### Terraform Plan Output
+            const output = `${header}
               \`\`\`
               Plan: ${{ steps.plan-output.outputs.add }} to add, ${{ steps.plan-output.outputs.change }} to change, ${{ steps.plan-output.outputs.destroy }} to destroy.
               \`\`\`
-              [Terraform Plan](${{ steps.plan-run.outputs.run_link }})`;
+            [View plan in Terraform Cloud](${{ steps.plan-run.outputs.run_link }})
+            `;
 
             if (botComment) {
-               github.rest.issues.deleteComment({
+              await github.rest.issues.updateComment({
                 ...prParams,
                 comment_id: botComment.id,
+                body: output
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...prParams,
+                body: output
               });
             }
-
-            github.rest.issues.createComment({
-              ...prParams,
-              body: output
-            });
