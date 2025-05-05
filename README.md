@@ -111,4 +111,3 @@ jobs:
             TF_BASE_SUBDIRECTORY: "folder-that-contains-your-terraform-files"
             TF_CLOUD_ORGANIZATION: "your-terraform-cloud-organization"
             TF_WORKSPACE: "your-workspace"
-```
